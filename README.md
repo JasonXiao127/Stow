@@ -2,9 +2,6 @@
 
 **Download YouTube audio as high-quality Opus files — the way YouTube actually sounds, not a lie.**
 
-<img width="1179" height="788" alt="image" src="https://github.com/user-attachments/assets/42b73f17-476f-4765-83d9-8d5c8b503ba5" />
-
-
 ---
 
 ## Features
@@ -19,6 +16,8 @@
 - Duplicate URL detection prevents downloading the same video twice
 - Dark and light theme
 - Cross-platform desktop app (Windows, macOS, Linux) built with Electron
+
+<img width="1179" height="788" alt="image" src="https://github.com/user-attachments/assets/42b73f17-476f-4765-83d9-8d5c8b503ba5" />
 
 ## Why Stow?
 
