@@ -4,6 +4,20 @@
 
 ---
 
+## Why Stow?
+
+Most “YouTube to MP3” sites and apps lie about quality. They claim 320 kbps MP3, but behind the scenes they fetch a low-bitrate stream and re-encode it — a lossy-to-lossy conversion that permanently degrades the audio.
+
+YouTube stores audio as Opus. For 1080p videos that’s usually around 160 kbps, a bitrate where Opus is audibly transparent. In controlled listening tests, Opus at 160 kbps consistently beats 320 kbps MP3.
+
+Stow uses yt-dlp to grab the **real** Opus stream straight from YouTube. No conversion, no lies. You get exactly what YouTube serves and its untouched.
+
+No web app, no ads, no “download our app” pop-ups, no file size limits. Just a clean, native desktop tool.
+
+<img width="1179" height="788" alt="image" src="https://github.com/user-attachments/assets/42b73f17-476f-4765-83d9-8d5c8b503ba5" />
+
+<img width="550" height="858" alt="image" src="https://github.com/user-attachments/assets/f5343202-d4f9-4f33-80d1-c4c2c87765e7" />
+
 ## Features
 
 - Downloads the best audio stream directly from YouTube (no re-encoding, no quality loss)
@@ -16,18 +30,6 @@
 - Duplicate URL detection prevents downloading the same video twice
 - Dark and light theme
 - Cross-platform desktop app (Windows, macOS, Linux) built with Electron
-
-<img width="1179" height="788" alt="image" src="https://github.com/user-attachments/assets/42b73f17-476f-4765-83d9-8d5c8b503ba5" />
-
-## Why Stow?
-
-Most “YouTube to MP3” sites and apps lie about quality. They claim 320 kbps MP3, but behind the scenes they fetch a low-bitrate stream and re-encode it — a lossy-to-lossy conversion that permanently degrades the audio.
-
-YouTube stores audio as Opus. For 1080p videos that’s usually around 160 kbps, a bitrate where Opus is audibly transparent. In controlled listening tests, Opus at 160 kbps consistently beats 320 kbps MP3.
-
-Stow uses yt-dlp to grab the **real** Opus stream straight from YouTube. No conversion, no lies. You get exactly what YouTube serves and its untouched.
-
-No web app, no ads, no “download our app” pop-ups, no file size limits. Just a clean, native desktop tool.
 
 ## How It Works
 
