@@ -58,7 +58,6 @@ export default function MetadataEditor({ filePath, onClose, showToast }) {
       if (imagePath) {
         setIsSaving(true);
         await window.electronAPI.writeMetadata(filePath, tags, imagePath);
-        // Reload metadata to show new thumbnail
         await loadMetadata(filePath);
         showToast('Thumbnail updated successfully!', 'success');
       }
@@ -69,161 +68,139 @@ export default function MetadataEditor({ filePath, onClose, showToast }) {
     }
   };
 
-  // No file selected
-  if (!filePath) {
-    return (
-      <div className="metadata-panel">
-        <div className="metadata-header">
-          <h2>Metadata Editor</h2>
-        </div>
-        <div className="metadata-content">
+  return (
+    <>
+      {/* Modal Header */}
+      <div className="modal-header">
+        <h2>Metadata Editor</h2>
+        <button className="modal-close-btn" onClick={onClose}>✕</button>
+      </div>
+
+      {/* Modal Body */}
+      <div className="modal-body">
+        {!filePath ? (
           <div className="metadata-empty">
             <div>No file selected</div>
             <div className="sub">
-              Click "Open File" to edit metadata of an existing audio file, or
-              download a video first and click the edit button.
+              Open an audio file to edit its metadata.
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Loading
-  if (isLoading) {
-    return (
-      <div className="metadata-panel">
-        <div className="metadata-header">
-          <h2>Metadata Editor</h2>
-          <button className="btn btn-secondary btn-small" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-        <div className="metadata-content">
+        ) : isLoading ? (
           <div className="metadata-empty">
             <div>Loading metadata...</div>
           </div>
-        </div>
+        ) : (
+          <div className="metadata-panel">
+            <div className="metadata-content">
+              {/* File Path */}
+              <div className="file-selector">
+                <div className="file-path" title={filePath}>
+                  {filePath}
+                </div>
+              </div>
+
+              {/* Thumbnail */}
+              <div className="thumbnail-container">
+                {coverArt ? (
+                  <img
+                    className="thumbnail-image"
+                    src={`data:${coverArt.format};base64,${coverArt.data}`}
+                    alt="Cover Art"
+                  />
+                ) : (
+                  <div className="thumbnail-placeholder">No Cover Art</div>
+                )}
+                <button
+                  className="btn btn-secondary btn-small"
+                  onClick={handleChangeThumbnail}
+                  disabled={isSaving}
+                >
+                  Change Thumbnail
+                </button>
+              </div>
+
+              {/* Metadata Form */}
+              <div className="metadata-form">
+                <div className="form-group">
+                  <label className="form-label">Title</label>
+                  <input
+                    className="form-input"
+                    type="text"
+                    value={tags.title}
+                    onChange={handleChange('title')}
+                    placeholder="Song Title"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Artist</label>
+                  <input
+                    className="form-input"
+                    type="text"
+                    value={tags.artist}
+                    onChange={handleChange('artist')}
+                    placeholder="Artist Name"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Album</label>
+                  <input
+                    className="form-input"
+                    type="text"
+                    value={tags.album}
+                    onChange={handleChange('album')}
+                    placeholder="Album Name"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Track</label>
+                  <input
+                    className="form-input"
+                    type="text"
+                    value={tags.track}
+                    onChange={handleChange('track')}
+                    placeholder="Track Number"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Genre</label>
+                  <input
+                    className="form-input"
+                    type="text"
+                    value={tags.genre}
+                    onChange={handleChange('genre')}
+                    placeholder="Genre"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Year</label>
+                  <input
+                    className="form-input"
+                    type="text"
+                    value={tags.year}
+                    onChange={handleChange('year')}
+                    placeholder="Year"
+                  />
+                </div>
+
+                <div className="form-actions">
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? 'Saving...' : 'Save Metadata'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    );
-  }
-
-  return (
-    <div className="metadata-panel">
-      <div className="metadata-header">
-        <h2>Metadata Editor</h2>
-        <button className="btn btn-secondary btn-small" onClick={onClose}>
-          ✕
-        </button>
-      </div>
-
-      <div className="metadata-content">
-        {/* File Path */}
-        <div className="file-selector">
-          <div className="file-path" title={filePath}>
-            {filePath}
-          </div>
-        </div>
-
-        {/* Thumbnail */}
-        <div className="thumbnail-container">
-          {coverArt ? (
-            <img
-              className="thumbnail-image"
-              src={`data:${coverArt.format};base64,${coverArt.data}`}
-              alt="Cover Art"
-            />
-          ) : (
-            <div className="thumbnail-placeholder">No Cover Art</div>
-          )}
-          <button
-            className="btn btn-secondary btn-small"
-            onClick={handleChangeThumbnail}
-            disabled={isSaving}
-          >
-            Change Thumbnail
-          </button>
-        </div>
-
-        {/* Metadata Form */}
-        <div className="metadata-form">
-          <div className="form-group">
-            <label className="form-label">Title</label>
-            <input
-              className="form-input"
-              type="text"
-              value={tags.title}
-              onChange={handleChange('title')}
-              placeholder="Song Title"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Artist</label>
-            <input
-              className="form-input"
-              type="text"
-              value={tags.artist}
-              onChange={handleChange('artist')}
-              placeholder="Artist Name"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Album</label>
-            <input
-              className="form-input"
-              type="text"
-              value={tags.album}
-              onChange={handleChange('album')}
-              placeholder="Album Name"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Track</label>
-            <input
-              className="form-input"
-              type="text"
-              value={tags.track}
-              onChange={handleChange('track')}
-              placeholder="Track Number"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Genre</label>
-            <input
-              className="form-input"
-              type="text"
-              value={tags.genre}
-              onChange={handleChange('genre')}
-              placeholder="Genre"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Year</label>
-            <input
-              className="form-input"
-              type="text"
-              value={tags.year}
-              onChange={handleChange('year')}
-              placeholder="Year"
-            />
-          </div>
-
-          <div className="form-actions">
-            <button
-              className="btn btn-primary"
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving...' : 'Save Metadata'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }

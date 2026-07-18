@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // File system operations
   showInFolder: (filePath) => ipcRenderer.invoke('show-in-folder', filePath),
+  deleteFiles: (filePaths) => ipcRenderer.invoke('delete-files', filePaths),
 
   // Event listeners (main -> renderer)
   onDownloadProgress: (callback) => {

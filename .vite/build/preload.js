@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openImageDialog: () => ipcRenderer.invoke("open-image-dialog"),
   // File system operations
   showInFolder: (filePath) => ipcRenderer.invoke("show-in-folder", filePath),
+  deleteFiles: (filePaths) => ipcRenderer.invoke("delete-files", filePaths),
   // Event listeners (main -> renderer)
   onDownloadProgress: (callback) => {
     const listener = (event, data) => callback(data);

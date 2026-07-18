@@ -2,7 +2,7 @@
   "name": "stow",
   "version": "1.0.0",
   "description": "Electron YouTube Audio Downloader & Tagger",
-  "main": "src/main/index.js",
+  "main": ".vite/build/index.js",
   "scripts": {
     "start": "electron-forge start",
     "dev": "electron-forge start",
@@ -11,7 +11,7 @@
     "setup-binaries": "node scripts/download-binaries.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Stow",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
