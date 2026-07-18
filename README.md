@@ -2,9 +2,7 @@
 
 **Download YouTube audio as high-quality Opus files — the way YouTube actually sounds, not a lie.**
 
-![Main download queue](<img width="1179" height="788" alt="image" src="https://github.com/user-attachments/assets/f2c15626-8e67-4b47-80e7-e40556d56be5" />)
-*Main download queue*
-
+<img width="1179" height="788" alt="image" src="https://github.com/user-attachments/assets/42b73f17-476f-4765-83d9-8d5c8b503ba5" />
 
 
 ---
