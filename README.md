@@ -6,9 +6,9 @@
 
 ## Why Stow?
 
-Most “YouTube to MP3” sites and apps lie about quality. They claim 320 kbps MP3, but behind the scenes they fetch a low-bitrate stream and re-encode it — a lossy-to-lossy conversion that permanently degrades the audio.
+Most “YouTube to MP3” sites and apps lie about quality. They claim 320 kbps MP3, but behind the scenes they fetch a low-bitrate stream and re-encode it — a lossy-to-lossy conversion that permanently degrades the audio that somehow takes up more space.
 
-YouTube stores audio as Opus. For 1080p videos that’s usually around 160 kbps, a bitrate where Opus is audibly transparent. In controlled listening tests, Opus at 160 kbps consistently beats 320 kbps MP3.
+YouTube stores audio as Opus. For 1080p videos that’s usually around 160 kbps, a bitrate where Opus is audibly transparent. For 99% of the population, they shouldn't be able to tell the difference (especially with VBR). In controlled listening tests, Opus at 160 kbps consistently beats 320 kbps MP3.
 
 Stow uses yt-dlp to grab the **real** Opus stream straight from YouTube. No conversion, no lies. You get exactly what YouTube serves and its untouched.
 
