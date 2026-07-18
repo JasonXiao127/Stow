@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 const EMPTY_TAGS = {
   title: '',
@@ -12,23 +12,79 @@ const EMPTY_TAGS = {
 export default function MetadataEditor({ filePath, onClose, showToast }) {
   const [tags, setTags] = useState(EMPTY_TAGS);
   const [coverArt, setCoverArt] = useState(null);
+  const [coverArtUrl, setCoverArtUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const coverArtUrlRef = useRef(null);
+  const mountedRef = useRef(true);
+
+  // Track mount state to avoid setting state on unmounted component
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // Revoke previous object URL to avoid memory leaks
+  const revokeCoverArtUrl = useCallback(() => {
+    if (coverArtUrlRef.current) {
+      URL.revokeObjectURL(coverArtUrlRef.current);
+      coverArtUrlRef.current = null;
+    }
+  }, []);
+
+  const makeCoverArtUrl = useCallback((art) => {
+    if (!art || !art.data) return null;
+    // art.data is a Uint8Array from IPC (structured clone)
+    try {
+      const blob = new Blob([art.data], { type: art.format });
+      const url = URL.createObjectURL(blob);
+      return url;
+    } catch (err) {
+      console.error('[MetadataEditor] Failed to create Blob URL:', err);
+      return null;
+    }
+  }, []);
 
   const loadMetadata = useCallback(async (path) => {
     if (!path) return;
 
     setIsLoading(true);
+    revokeCoverArtUrl();
     try {
       const result = await window.electronAPI.readMetadata(path);
+      if (!mountedRef.current) return; // component unmounted during load
+
       setTags(result.tags || EMPTY_TAGS);
-      setCoverArt(result.coverArt || null);
+
+      const art = result.coverArt || null;
+      setCoverArt(art);
+
+      if (art) {
+        const url = makeCoverArtUrl(art);
+        if (url) {
+          coverArtUrlRef.current = url;
+          setCoverArtUrl(url);
+        } else {
+          setCoverArtUrl(null);
+        }
+      } else {
+        setCoverArtUrl(null);
+      }
     } catch (err) {
+      if (!mountedRef.current) return;
+      console.error('[MetadataEditor] loadMetadata error:', err);
       showToast(`Failed to read metadata: ${err.message}`, 'error');
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [showToast]);
+  }, [showToast, revokeCoverArtUrl, makeCoverArtUrl]);
+
+  // Cleanup object URL on unmount
+  useEffect(() => {
+    return () => revokeCoverArtUrl();
+  }, [revokeCoverArtUrl]);
 
   useEffect(() => {
     loadMetadata(filePath);
@@ -58,8 +114,13 @@ export default function MetadataEditor({ filePath, onClose, showToast }) {
       if (imagePath) {
         setIsSaving(true);
         await window.electronAPI.writeMetadata(filePath, tags, imagePath);
-        await loadMetadata(filePath);
+        // Show success toast BEFORE reloading metadata to avoid double-toast risk
         showToast('Thumbnail updated successfully!', 'success');
+        // Clear current cover art so it doesn't flash stale image during reload
+        setCoverArtUrl(null);
+        setCoverArt(null);
+        revokeCoverArtUrl();
+        await loadMetadata(filePath);
       }
     } catch (err) {
       showToast(`Failed to update thumbnail: ${err.message}`, 'error');
@@ -101,10 +162,10 @@ export default function MetadataEditor({ filePath, onClose, showToast }) {
 
               {/* Thumbnail */}
               <div className="thumbnail-container">
-                {coverArt ? (
+                {coverArtUrl ? (
                   <img
                     className="thumbnail-image"
-                    src={`data:${coverArt.format};base64,${coverArt.data}`}
+                    src={coverArtUrl}
                     alt="Cover Art"
                   />
                 ) : (

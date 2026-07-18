@@ -528,7 +528,7 @@ body {
 }
 
 .metadata-content {
-  overflow-y: auto;
+  /* overflow is handled by parent .modal-body */
 }
 
 .metadata-empty {
