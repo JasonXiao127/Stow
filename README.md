@@ -24,12 +24,12 @@ No web app, no ads, no “download our app” pop-ups, no file size limits. Just
 - Outputs `.opus` containers — uses the same Opus codec YouTube serves internally
 - Auto-embeds thumbnails and metadata (title, artist, album, etc.)
 - Built-in metadata editor to fix or change tags and cover art after download
-- Real-time download progress, speed, and ETA for each item
 - Queue management: add multiple URLs, cancel one or all
 - Persistent queue that resumes across app restarts; detects already downloaded files
 - Duplicate URL detection prevents downloading the same video twice
 - Dark and light theme
 - Cross-platform desktop app (Windows, macOS, Linux) built with Electron
+- *macOS and Linux are experimental and have not been tested extensively 
 
 ## How It Works
 
