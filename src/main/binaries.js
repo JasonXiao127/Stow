@@ -40,4 +40,10 @@ function getFfmpegPath() {
   return ffmpegPath;
 }
 
-module.exports = { getYtDlpPath, getFfmpegPath, getBinDir };
+function getFfprobePath() {
+  const binDir = getBinDir();
+  const ext = process.platform === 'win32' ? '.exe' : '';
+  return path.join(binDir, `ffprobe${ext}`);
+}
+
+module.exports = { getYtDlpPath, getFfmpegPath, getFfprobePath, getBinDir };

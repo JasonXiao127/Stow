@@ -15,15 +15,24 @@ const BINARIES = {
   'ffmpeg': {
     win32: {
       url: 'https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip',
-      extract: 'ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe',
+      archiveExtension: '.zip',
+      ffmpegExtract: 'ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe',
+      ffprobeExtract: 'ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe',
+      requiresFfprobe: true,
     },
     darwin: {
       url: 'https://evermeet.cx/ffmpeg/ffmpeg-7.1.zip',
-      extract: 'ffmpeg',
+      archiveExtension: '.zip',
+      ffmpegExtract: 'ffmpeg',
+      ffprobeExtract: 'ffprobe',
+      requiresFfprobe: false,
     },
     linux: {
       url: 'https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-linux64-gpl.tar.xz',
-      extract: 'ffmpeg-master-latest-linux64-gpl/bin/ffmpeg',
+      archiveExtension: '.tar.xz',
+      ffmpegExtract: 'ffmpeg-master-latest-linux64-gpl/bin/ffmpeg',
+      ffprobeExtract: 'ffmpeg-master-latest-linux64-gpl/bin/ffprobe',
+      requiresFfprobe: true,
     },
   },
 };
@@ -56,15 +65,15 @@ function downloadFile(url, destPath) {
   });
 }
 
-function extractZip(zipPath, extractDir, fileInZip) {
-  console.log(`Extracting ${zipPath}...`);
+function extractZip(archivePath, extractDir) {
+  console.log(`Extracting ${archivePath}...`);
   if (process.platform === 'win32') {
     // Use PowerShell to extract
-    const cmd = `powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${extractDir}' -Force"`;
+    const cmd = `powershell -Command "Expand-Archive -Path '${archivePath}' -DestinationPath '${extractDir}' -Force"`;
     execSync(cmd, { stdio: 'inherit' });
   } else {
     const AdmZip = require('adm-zip');
-    const zip = new AdmZip(zipPath);
+    const zip = new AdmZip(archivePath);
     zip.extractAllTo(extractDir, true);
   }
 }
@@ -100,10 +109,11 @@ async function downloadBinaries() {
   // Download FFmpeg
   const ffmpegConfig = BINARIES['ffmpeg'][PLATFORM];
   const ffmpegPath = path.join(BIN_DIR, PLATFORM === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
+  const ffprobePath = path.join(BIN_DIR, PLATFORM === 'win32' ? 'ffprobe.exe' : 'ffprobe');
 
-  if (!fs.existsSync(ffmpegPath)) {
-    const zipPath = path.join(BIN_DIR, 'ffmpeg.zip');
-    await downloadFile(ffmpegConfig.url, zipPath);
+  if (!fs.existsSync(ffmpegPath) || (ffmpegConfig.requiresFfprobe && !fs.existsSync(ffprobePath))) {
+    const archivePath = path.join(BIN_DIR, `ffmpeg${ffmpegConfig.archiveExtension}`);
+    await downloadFile(ffmpegConfig.url, archivePath);
 
     // Extract
     const extractDir = path.join(BIN_DIR, 'ffmpeg-extract');
@@ -111,19 +121,16 @@ async function downloadBinaries() {
       fs.mkdirSync(extractDir, { recursive: true });
     }
 
-    if (PLATFORM === 'win32') {
-      extractZip(zipPath, extractDir, null);
+    if (ffmpegConfig.archiveExtension === '.zip') {
+      extractZip(archivePath, extractDir);
+    } else if (ffmpegConfig.archiveExtension === '.tar.xz') {
+      execSync(`tar -xf "${archivePath}" -C "${extractDir}"`, { stdio: 'inherit' });
     } else {
-      // For macOS/Linux, use system unzip/tar
-      if (zipPath.endsWith('.zip')) {
-        execSync(`unzip -o "${zipPath}" -d "${extractDir}"`, { stdio: 'inherit' });
-      } else if (zipPath.endsWith('.tar.xz')) {
-        execSync(`tar -xf "${zipPath}" -C "${extractDir}"`, { stdio: 'inherit' });
-      }
+      throw new Error(`Unsupported FFmpeg archive type: ${ffmpegConfig.archiveExtension}`);
     }
 
     // Move ffmpeg binary
-    const extractedFfmpeg = path.join(extractDir, ffmpegConfig.extract);
+    const extractedFfmpeg = path.join(extractDir, ffmpegConfig.ffmpegExtract);
     if (fs.existsSync(extractedFfmpeg)) {
       fs.copyFileSync(extractedFfmpeg, ffmpegPath);
       if (PLATFORM !== 'win32') {
@@ -132,10 +139,22 @@ async function downloadBinaries() {
       console.log(`FFmpeg downloaded to ${ffmpegPath}`);
     } else {
       console.error(`Could not find ffmpeg in extracted files at ${extractedFfmpeg}`);
+      throw new Error(`Could not find ffmpeg in extracted files at ${extractedFfmpeg}`);
+    }
+
+    // BtbN archives include ffprobe. Some macOS distributions do not, so
+    // install it when present without making it mandatory there.
+    const extractedFfprobe = path.join(extractDir, ffmpegConfig.ffprobeExtract);
+    if (fs.existsSync(extractedFfprobe)) {
+      fs.copyFileSync(extractedFfprobe, ffprobePath);
+      if (PLATFORM !== 'win32') {
+        fs.chmodSync(ffprobePath, 0o755);
+      }
+      console.log(`FFprobe downloaded to ${ffprobePath}`);
     }
 
     // Cleanup
-    fs.unlinkSync(zipPath);
+    fs.unlinkSync(archivePath);
     fs.rmSync(extractDir, { recursive: true, force: true });
   } else {
     console.log('FFmpeg already exists, skipping.');

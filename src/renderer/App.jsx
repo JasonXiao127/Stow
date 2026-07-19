@@ -67,6 +67,7 @@ export default function App() {
       }
     } catch (err) {
       showToast(`Failed to start downloads: ${err.message}`, 'error');
+      throw err;
     }
   };
 

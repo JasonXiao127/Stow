@@ -5,6 +5,21 @@ module.exports = {
     name: 'Stow',
     executableName: 'stow',
     asar: true,
+    prune: true,
+    icon: './assets/icon',
+    // The Vite plugin normally keeps only .vite in the packaged app. The
+    // main process still loads a few CommonJS modules at runtime, so retain
+    // production dependencies and the window icon as well.
+    ignore: (file) => {
+      if (!file) return false;
+      const normalized = file.replaceAll('\\', '/');
+      return !(
+        normalized === '/package.json' ||
+        normalized.startsWith('/.vite') ||
+        normalized.startsWith('/node_modules') ||
+        normalized.startsWith('/assets')
+      );
+    },
     extraResource: [
       './bin',
     ],
@@ -15,6 +30,7 @@ module.exports = {
       config: {
         name: 'stow',
         setupExe: 'Stow-Setup.exe',
+        setupIcon: './assets/icon.ico',
       },
     },
     {

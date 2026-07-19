@@ -24,6 +24,7 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     title: 'Stow - YouTube Audio Downloader',
+    icon: path.join(__dirname, '..', '..', 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -62,6 +63,7 @@ app.whenReady().then(() => {
   setupDownloadHandlers(downloadManager);
   setupMetadataHandlers();
   createWindow();
+  downloadManager.resume();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -78,6 +80,6 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   if (downloadManager) {
-    downloadManager.cancelAll();
+    downloadManager.shutdown();
   }
 });

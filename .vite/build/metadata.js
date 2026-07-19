@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { randomUUID } = require('crypto');
 const { getFfmpegPath } = require('./binaries');
 
 /**
@@ -63,10 +64,10 @@ function writeMetadata(filePath, tags, newThumbnailPath = null) {
     };
 
     for (const [key, ffmpegKey] of Object.entries(metadataMap)) {
-      const value = sanitizeTagValue(tags[key]);
-      if (value) {
-        args.push('-metadata', `${ffmpegKey}=${value}`);
-      }
+      const value = sanitizeTagValue(tags?.[key]);
+      // Emit empty values too so clearing a field in the editor removes the
+      // existing tag instead of silently preserving it.
+      args.push('-metadata', `${ffmpegKey}=${value}`);
     }
 
     // Output options: stream mapping and codec
@@ -96,11 +97,28 @@ function writeMetadata(filePath, tags, newThumbnailPath = null) {
 
     childProc.on('close', (code) => {
       if (code === 0) {
-        // Atomic replace: rename temp to original (overwrites original on all platforms)
+        // Replace the original while keeping a recovery path on Windows,
+        // where renameSync cannot overwrite an existing destination.
         try {
-          // On Windows, renameSync overwrites an existing file atomically.
-          // Using unlink+rename would leave no file if rename failed after unlink.
-          fs.renameSync(tempPath, filePath);
+          if (process.platform === 'win32') {
+            const backupPath = `${filePath}.backup-${randomUUID()}`;
+            fs.renameSync(filePath, backupPath);
+            try {
+              fs.renameSync(tempPath, filePath);
+            } catch (replaceErr) {
+              if (!fs.existsSync(filePath) && fs.existsSync(backupPath)) {
+                fs.renameSync(backupPath, filePath);
+              }
+              throw replaceErr;
+            }
+            try {
+              fs.unlinkSync(backupPath);
+            } catch (cleanupErr) {
+              console.warn('Failed to remove metadata backup:', cleanupErr.message);
+            }
+          } else {
+            fs.renameSync(tempPath, filePath);
+          }
           resolve(filePath);
         } catch (err) {
           // Clean up temp file on failure

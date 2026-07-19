@@ -1,8 +1,12 @@
 const { ipcMain, shell, dialog, app } = require('electron');
+const fs = require('fs');
 
 function setupDownloadHandlers(downloadManager) {
   // Start downloads
   ipcMain.handle('start-downloads', (event, urls) => {
+    if (!Array.isArray(urls) || urls.some((url) => typeof url !== 'string')) {
+      throw new TypeError('URLs must be an array of strings');
+    }
     const result = downloadManager.addJobs(urls);
     return result;
   });
@@ -27,9 +31,23 @@ function setupDownloadHandlers(downloadManager) {
 
   // Delete files from disk (used when clearing queue with cleanup)
   ipcMain.handle('delete-files', async (event, filePaths) => {
-    const fs = require('fs');
+    if (!Array.isArray(filePaths) || filePaths.some((filePath) => typeof filePath !== 'string')) {
+      throw new TypeError('File paths must be an array of strings');
+    }
+
+    const allowedPaths = new Set(
+      downloadManager
+        .getQueue()
+        .filter((job) => job.status === 'Complete' && job.outputPath)
+        .map((job) => job.outputPath)
+    );
+
     const results = [];
     for (const fp of filePaths) {
+      if (!allowedPaths.has(fp)) {
+        results.push({ path: fp, deleted: false, reason: 'not an active completed download' });
+        continue;
+      }
       try {
         if (fs.existsSync(fp)) {
           fs.unlinkSync(fp);

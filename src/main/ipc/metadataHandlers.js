@@ -1,9 +1,8 @@
 const { ipcMain, dialog } = require('electron');
-const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const { writeMetadata } = require('../metadata');
-const { getFfmpegPath } = require('../binaries');
+const { getFfmpegPath, getFfprobePath } = require('../binaries');
 
 /**
  * Minimum expected size for a valid JPEG thumbnail (in bytes).
@@ -146,7 +145,7 @@ function logImageDiagnostics(source, data, format) {
  */
 function readTagsViaFfprobe(filePath) {
   return new Promise((resolve) => {
-    const ffprobePath = getFfpProbePath();
+    const ffprobePath = getFfprobePath();
     const args = [
       '-v', 'quiet',
       '-print_format', 'json',
@@ -270,15 +269,6 @@ function readCoverArtViaFfmpeg(filePath) {
       resolve(null);
     });
   });
-}
-
-/**
- * Get ffprobe path (sibling to ffmpeg).
- */
-function getFfpProbePath() {
-  const ffmpegPath = getFfmpegPath();
-  const ext = process.platform === 'win32' ? '.exe' : '';
-  return ffmpegPath.replace(/ffmpeg\.exe$|ffmpeg$/, `ffprobe${ext}`);
 }
 
 /**

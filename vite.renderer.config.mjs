@@ -6,4 +6,10 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   root: 'src/renderer',
+  build: {
+    // The Forge Vite plugin packages the project-root .vite directory. With
+    // root set to src/renderer, Vite would otherwise emit into
+    // src/renderer/.vite and the packaged app would have no renderer files.
+    outDir: '../../.vite/renderer/main_window',
+  },
 });

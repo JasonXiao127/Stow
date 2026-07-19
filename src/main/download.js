@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { randomUUID } = require('crypto');
 const { app } = require('electron');
 const { getYtDlpPath, getFfmpegPath } = require('./binaries');
 
@@ -32,10 +33,20 @@ class DownloadManager {
       if (fs.existsSync(QUEUE_FILE)) {
         const data = fs.readFileSync(QUEUE_FILE, 'utf-8');
         const savedQueue = JSON.parse(data);
-        // Mark any incomplete jobs as Failed (app was closed mid-download)
+        // Put interrupted jobs back into the queue so the next launch can
+        // retry them. Failed jobs remain visible and are not retried.
         this.queue = savedQueue.map((job) => {
           if (job.status !== 'Complete' && job.status !== 'Failed') {
-            return { ...job, status: 'Failed', error: 'App was closed during download' };
+            return {
+              ...job,
+              status: 'Pending',
+              progress: 0,
+              speed: '',
+              eta: '',
+              error: '',
+              cancelled: false,
+              process: null,
+            };
           }
           return job;
         });
@@ -50,25 +61,45 @@ class DownloadManager {
 
   _saveQueueState() {
     try {
-      fs.writeFileSync(QUEUE_FILE, JSON.stringify(this.queue, null, 2), 'utf-8');
+      // Never persist ChildProcess internals. Besides being unnecessary,
+      // they contain streams and platform-specific state.
+      const safeQueue = this.queue.map((job) => this._getSafeJob(job));
+      fs.writeFileSync(QUEUE_FILE, JSON.stringify(safeQueue, null, 2), 'utf-8');
     } catch (err) {
       console.error('Failed to save queue state:', err.message);
     }
   }
 
   addJobs(urls) {
+    if (!Array.isArray(urls)) {
+      throw new TypeError('URLs must be provided as an array');
+    }
+
+    // Refresh completed-file statuses before deciding whether a URL is
+    // still active. This permits a re-download after its file was removed.
+    this._getSafeQueue();
+
     // Normalize and deduplicate against active queue jobs
-    const normalizedUrls = urls.map((u) => u.trim());
+    const normalizedUrls = urls
+      .filter((url) => typeof url === 'string')
+      .map((url) => url.trim())
+      .filter(Boolean);
     const activeUrls = new Set(
       this.queue
         .filter((j) => ['Pending', 'Fetching', 'Processing', 'Complete'].includes(j.status))
         .map((j) => j.url)
     );
-    const uniqueUrls = normalizedUrls.filter((url) => !activeUrls.has(url));
+    const uniqueUrls = [];
+    for (const url of normalizedUrls) {
+      if (!activeUrls.has(url)) {
+        activeUrls.add(url);
+        uniqueUrls.push(url);
+      }
+    }
     const skipped = normalizedUrls.length - uniqueUrls.length;
 
-    const newJobs = uniqueUrls.map((url, index) => ({
-      id: `job_${Date.now()}_${index}`,
+    const newJobs = uniqueUrls.map((url) => ({
+      id: `job_${Date.now()}_${randomUUID()}`,
       url: url,
       status: 'Pending',
       progress: 0,
@@ -100,6 +131,7 @@ class DownloadManager {
         // Process may already have exited
       }
       this.currentJob.cancelled = true;
+      this.currentJob.process = null;
       this.currentJob = null;
     }
 
@@ -121,6 +153,7 @@ class DownloadManager {
         // Process may already have exited
       }
       job.cancelled = true;
+      job.process = null;
       this.currentJob = null;
       this.isProcessing = false;
     }
@@ -177,6 +210,34 @@ class DownloadManager {
     this._startDownload(nextJob);
   }
 
+  resume() {
+    if (!this.isProcessing && this.queue.some((job) => job.status === 'Pending')) {
+      this._processNext();
+    }
+  }
+
+  shutdown() {
+    if (this.currentJob) {
+      const job = this.currentJob;
+      job.cancelled = true;
+      try {
+        job.process?.kill();
+      } catch {
+        // Process may already have exited.
+      }
+      job.process = null;
+      job.status = 'Pending';
+      job.progress = 0;
+      job.speed = '';
+      job.eta = '';
+      job.error = '';
+      this.currentJob = null;
+    }
+
+    this.isProcessing = false;
+    this._saveQueueState();
+  }
+
   /**
    * Normalize a file path for Windows: trailing dots and spaces are not allowed
    * in filenames on Windows, so yt-dlp's --print filename can report a path
@@ -198,19 +259,28 @@ class DownloadManager {
     job.startedAt = Date.now();
     this._emit('queue-updated', this._getSafeQueue());
 
-    const ytDlpPath = getYtDlpPath();
+    let ytDlpPath;
+    let ffmpegDir;
+    try {
+      ytDlpPath = getYtDlpPath();
+      ffmpegDir = path.dirname(getFfmpegPath());
+    } catch (err) {
+      job.status = 'Failed';
+      job.error = err.message;
+      this._saveQueueState();
+      this._emit('queue-updated', this._getSafeQueue());
+      this.isProcessing = false;
+      this.currentJob = null;
+      this._processNext();
+      return;
+    }
+
     const outputTemplate = path.join(
       app.getPath('downloads'),
-      '%(title)s.%(ext)s'
+      '%(title)s [%(id)s].%(ext)s'
     );
 
-    // Get the directory containing ffmpeg so we can add it to PATH.
-    // Using --ffmpeg-location is unreliable on Windows; adding the bin directory
-    // to the PATH environment variable is more reliable — yt-dlp searches PATH.
-    const ffmpegDir = path.dirname(getFfmpegPath());
-
     const args = [
-      job.url,
       '--js-runtimes', 'node',
       '--force-overwrites',
       '-f', 'bestaudio',
@@ -223,6 +293,8 @@ class DownloadManager {
       '--progress',
       '--progress-template',
       'download:[%(progress.percent)s|%(progress.speed)s|%(progress.eta)s]',
+      '--print', 'after_move:filepath',
+      '--', job.url,
     ];
 
     const childProc = spawn(ytDlpPath, args, {
@@ -230,12 +302,14 @@ class DownloadManager {
       windowsHide: true,
       env: {
         ...process.env,
-        PATH: `${ffmpegDir};${process.env.PATH}`,
+        PATH: [ffmpegDir, process.env.PATH].filter(Boolean).join(path.delimiter),
       },
     });
 
     job.process = childProc;
     let stdoutBuffer = '';
+    let finalOutputPath = '';
+    let settled = false;
 
     childProc.stdout.on('data', (data) => {
       // Buffer incoming data and split into complete lines
@@ -262,6 +336,8 @@ class DownloadManager {
               eta: job.eta,
             });
           }
+        } else if (path.isAbsolute(line)) {
+          finalOutputPath = line;
         }
       }
     });
@@ -274,21 +350,26 @@ class DownloadManager {
     });
 
     childProc.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+
       // If the job was already cancelled (by cancelJob/cancelAll), skip processing
       // because the cancellation handler already restarted the queue.
       if (job.cancelled) {
+        job.process = null;
         this._saveQueueState();
         this._emit('queue-updated', this._getSafeQueue());
         return;
       }
 
       if (code === 0) {
-        // Scan Downloads for the most recently modified audio file. yt-dlp's --print
-        // flags are unreliable for getting the final path after audio extraction,
-        // so we find the file directly. Since downloads run one at a time (isProcessing
-        // serializes them), this is safe — we'll pick up whatever file was just created.
+        // Prefer yt-dlp's final output path. The directory scan remains a
+        // compatibility fallback for older yt-dlp builds.
         const downloadsDir = app.getPath('downloads');
-        const foundPath = this._findNewestAudioFile(downloadsDir, job);
+        const printedPath = this._normalizeWindowsPath(finalOutputPath);
+        const foundPath = printedPath && fs.existsSync(printedPath)
+          ? printedPath
+          : this._findNewestAudioFile(downloadsDir, job);
 
         if (foundPath) {
           job.outputPath = foundPath;
@@ -308,6 +389,7 @@ class DownloadManager {
         job.error = job.error || `Process exited with code ${code}`;
       }
 
+      job.process = null;
       this._saveQueueState();
       this._emit('queue-updated', this._getSafeQueue());
 
@@ -317,8 +399,17 @@ class DownloadManager {
     });
 
     childProc.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+
+      if (job.cancelled) {
+        job.process = null;
+        return;
+      }
+
       job.status = 'Failed';
       job.error = err.message;
+      job.process = null;
       this._saveQueueState();
       this._emit('queue-updated', this._getSafeQueue());
       this.isProcessing = false;
