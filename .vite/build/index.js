@@ -1,1 +1,65 @@
-"use strict";const{app:e,BrowserWindow:t}=require("electron"),i=require("path"),s=require("./download"),{setupDownloadHandlers:l}=require("./ipc/downloadHandlers"),{setupMetadataHandlers:c}=require("./ipc/metadataHandlers");e.commandLine.appendSwitch("disable-gpu-cache");e.commandLine.appendSwitch("disable-software-rasterizer");let n=null,o=null;require("electron-squirrel-startup")&&e.quit();function a(){n=new t({width:1200,height:800,minWidth:800,minHeight:600,title:"Stow - YouTube Audio Downloader",icon:i.join(__dirname,"..","..","assets","icon.png"),webPreferences:{preload:i.join(__dirname,"preload.js"),contextIsolation:!0,nodeIntegration:!1,sandbox:!1},show:!1});const{isPackaged:r}=e;if(!r)n.loadURL("http://localhost:5173");else{const d=i.join(__dirname,"..","renderer","main_window","index.html");n.loadFile(d)}n.once("ready-to-show",()=>{n.show()}),n.on("closed",()=>{n=null})}e.whenReady().then(()=>{o=new s,l(o),c(),a(),o.resume(),e.on("activate",()=>{t.getAllWindows().length===0&&a()})});e.on("window-all-closed",()=>{process.platform!=="darwin"&&e.quit()});e.on("before-quit",()=>{o&&o.shutdown()});
+"use strict";
+const { app, BrowserWindow } = require("electron");
+const path = require("path");
+const DownloadManager = require("./download");
+const { setupDownloadHandlers } = require("./ipc/downloadHandlers");
+const { setupMetadataHandlers } = require("./ipc/metadataHandlers");
+app.commandLine.appendSwitch("disable-gpu-cache");
+app.commandLine.appendSwitch("disable-software-rasterizer");
+let mainWindow = null;
+let downloadManager = null;
+if (require("electron-squirrel-startup")) {
+  app.quit();
+}
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
+    title: "Stow - YouTube Audio Downloader",
+    icon: path.join(__dirname, "..", "..", "assets", "icon.png"),
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    },
+    show: false
+  });
+  const { isPackaged } = app;
+  if (!isPackaged) {
+    mainWindow.loadURL("http://localhost:5173");
+  } else {
+    const rendererPath = path.join(__dirname, "..", "renderer", "main_window", "index.html");
+    mainWindow.loadFile(rendererPath);
+  }
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
+  });
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+}
+app.whenReady().then(() => {
+  downloadManager = new DownloadManager();
+  setupDownloadHandlers(downloadManager);
+  setupMetadataHandlers();
+  createWindow();
+  downloadManager.resume();
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
+});
+app.on("before-quit", () => {
+  if (downloadManager) {
+    downloadManager.shutdown();
+  }
+});

@@ -3,12 +3,12 @@ const fs = require('fs');
 const { app } = require('electron');
 
 function getBinDir() {
+  const platform = process.platform === 'win32' ? 'win32' : process.platform === 'darwin' ? 'darwin' : 'linux';
   if (app.isPackaged) {
     // In production, binaries are in the app resources
-    return path.join(process.resourcesPath, 'bin');
+    return path.join(process.resourcesPath, 'bin', platform);
   }
   // In development, binaries are in the project's bin directory
-  const platform = process.platform === 'win32' ? 'win32' : process.platform === 'darwin' ? 'darwin' : 'linux';
   return path.join(__dirname, '..', '..', 'bin', platform);
 }
 

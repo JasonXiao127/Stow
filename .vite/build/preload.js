@@ -1,1 +1,39 @@
-"use strict";const{contextBridge:a,ipcRenderer:o}=require("electron");a.exposeInMainWorld("electronAPI",{startDownloads:e=>o.invoke("start-downloads",e),cancelDownloads:()=>o.invoke("cancel-downloads"),cancelJob:e=>o.invoke("cancel-job",e),getQueue:()=>o.invoke("get-queue"),readMetadata:e=>o.invoke("read-metadata",e),writeMetadata:(e,n,l)=>o.invoke("write-metadata",e,n,l),openFileDialog:()=>o.invoke("open-file-dialog"),openImageDialog:()=>o.invoke("open-image-dialog"),showInFolder:e=>o.invoke("show-in-folder",e),deleteFiles:e=>o.invoke("delete-files",e),onDownloadProgress:e=>{const n=(l,t)=>e(t);return o.on("download-progress",n),()=>o.removeListener("download-progress",n)},onDownloadComplete:e=>{const n=(l,t)=>e(t);return o.on("download-complete",n),()=>o.removeListener("download-complete",n)},onQueueUpdated:e=>{const n=(l,t)=>e(t);return o.on("queue-updated",n),()=>o.removeListener("queue-updated",n)},onAllDownloadsComplete:e=>{const n=()=>e();return o.on("all-downloads-complete",n),()=>o.removeListener("all-downloads-complete",n)}});
+"use strict";
+const { contextBridge, ipcRenderer } = require("electron");
+contextBridge.exposeInMainWorld("electronAPI", {
+  // Download operations
+  startDownloads: (urls) => ipcRenderer.invoke("start-downloads", urls),
+  cancelDownloads: () => ipcRenderer.invoke("cancel-downloads"),
+  cancelJob: (jobId) => ipcRenderer.invoke("cancel-job", jobId),
+  getQueue: () => ipcRenderer.invoke("get-queue"),
+  // Metadata operations
+  readMetadata: (filePath) => ipcRenderer.invoke("read-metadata", filePath),
+  writeMetadata: (filePath, tags, newThumbnailPath) => ipcRenderer.invoke("write-metadata", filePath, tags, newThumbnailPath),
+  // Dialog operations
+  openFileDialog: () => ipcRenderer.invoke("open-file-dialog"),
+  openImageDialog: () => ipcRenderer.invoke("open-image-dialog"),
+  // File system operations
+  showInFolder: (filePath) => ipcRenderer.invoke("show-in-folder", filePath),
+  deleteFiles: (filePaths) => ipcRenderer.invoke("delete-files", filePaths),
+  // Event listeners (main -> renderer)
+  onDownloadProgress: (callback) => {
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on("download-progress", listener);
+    return () => ipcRenderer.removeListener("download-progress", listener);
+  },
+  onDownloadComplete: (callback) => {
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on("download-complete", listener);
+    return () => ipcRenderer.removeListener("download-complete", listener);
+  },
+  onQueueUpdated: (callback) => {
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on("queue-updated", listener);
+    return () => ipcRenderer.removeListener("queue-updated", listener);
+  },
+  onAllDownloadsComplete: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on("all-downloads-complete", listener);
+    return () => ipcRenderer.removeListener("all-downloads-complete", listener);
+  }
+});
