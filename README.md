@@ -2,6 +2,8 @@
 
 **Download YouTube audio as high-quality Opus files — the way YouTube actually sounds, not a lie.**
 
+Docker Compose Application: https://github.com/JasonXiao127/Stowed
+
 ## Why Stow?
 
 Most “YouTube to MP3” sites and apps lie about quality. They claim 320 kbps MP3, but behind the scenes they fetch a low-bitrate stream and re-encode it — a lossy-to-lossy conversion that permanently degrades the audio that somehow takes up more space.
