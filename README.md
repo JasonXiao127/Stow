@@ -1,4 +1,11 @@
-# Stow
+# Stow — MOVED
+
+> **This repo has moved.** Stow (the Electron client) now lives in the unified
+> **Stowed** monorepo as `apps/stow-client`:
+> **https://github.com/JasonXiao127/Stowed**
+> This repo is archived read-only. Please file issues and PRs there.
+
+# Stow (archived)
 
 **Download YouTube audio as high-quality Opus files — the way YouTube actually sounds, not a lie.**
 
