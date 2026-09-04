@@ -2,5 +2,8 @@ node_modules/
 bin/
 dist/
 out/
+.vite/
+src/renderer/.vite/
+src/renderer/dist/
 *.log
 .env
